@@ -33,6 +33,12 @@ class _GroceryListState extends State<GroceryList> {
 
     final response = await http.get(url);
     print(response.body);
+    if (response.body == 'null') {
+      setState(() {
+        _groceryItems.addAll(items);
+      });
+      return;
+    }
     final Map<String, dynamic> resData = json.decode(response.body);
 
     for (final data in resData.entries) {
@@ -50,8 +56,9 @@ class _GroceryListState extends State<GroceryList> {
         ),
       );
     }
-
-    _groceryItems.addAll(items);
+    setState(() {
+      _groceryItems.addAll(items);
+    });
   }
 
   void _addItem() async {
@@ -64,6 +71,19 @@ class _GroceryListState extends State<GroceryList> {
         _groceryItems.add(newItem);
       });
     }
+  }
+
+  void _removeItem(GroceryItem item) {
+    final Uri url = Uri.https(
+      'my-flutter-shopping-list-default-rtdb.asia-southeast1.firebasedatabase.app',
+      'shopping_list/${item.id}.json',
+    );
+
+    http.delete(url);
+
+    setState(() {
+      _groceryItems.removeWhere((obj) => item == obj);
+    });
   }
 
   @override
@@ -93,9 +113,7 @@ class _GroceryListState extends State<GroceryList> {
               child: Icon(Icons.delete, color: Colors.white),
             ),
             onDismissed: (direction) {
-              setState(() {
-                _groceryItems.removeAt(index);
-              });
+              _removeItem(_groceryItems[index]);
 
               ScaffoldMessenger.of(
                 context,
