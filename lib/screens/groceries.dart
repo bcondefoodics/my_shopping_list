@@ -16,6 +16,7 @@ class GroceryList extends StatefulWidget {
 class _GroceryListState extends State<GroceryList> {
   final List<GroceryItem> _groceryItems = [];
   var _isLoading = true;
+  var _error = 'No items added yet';
 
   @override
   void initState() {
@@ -32,36 +33,52 @@ class _GroceryListState extends State<GroceryList> {
       'shopping_list.json',
     );
 
-    final response = await http.get(url);
-    print(response.body);
-    if (response.body == 'null') {
+    try {
+      final response = await http.get(url);
+      print(response.body);
+
+      if (response.statusCode >= 400) {
+        setState(() {
+          _error = 'Failed to fetch data.';
+          _isLoading = false;
+        });
+        return;
+      }
+
+      if (response.body == 'null') {
+        setState(() {
+          _groceryItems.addAll(items);
+          _isLoading = false;
+        });
+        return;
+      }
+      final Map<String, dynamic> resData = json.decode(response.body);
+
+      for (final data in resData.entries) {
+        final dynamic value = data.value;
+        final category = categories.entries.firstWhere((element) {
+          return element.value.name == value['category'];
+        });
+
+        items.add(
+          GroceryItem(
+            id: data.key,
+            name: value['name'],
+            quantity: value['quantity'],
+            category: category.value,
+          ),
+        );
+      }
       setState(() {
         _groceryItems.addAll(items);
         _isLoading = false;
       });
-      return;
-    }
-    final Map<String, dynamic> resData = json.decode(response.body);
-
-    for (final data in resData.entries) {
-      final dynamic value = data.value;
-      final category = categories.entries.firstWhere((element) {
-        return element.value.name == value['category'];
+    } catch (err) {
+      setState(() {
+        _error = 'Something went wrong.';
+        _isLoading = false;
       });
-
-      items.add(
-        GroceryItem(
-          id: data.key,
-          name: value['name'],
-          quantity: value['quantity'],
-          category: category.value,
-        ),
-      );
     }
-    setState(() {
-      _groceryItems.addAll(items);
-      _isLoading = false;
-    });
   }
 
   void _addItem() async {
@@ -93,7 +110,7 @@ class _GroceryListState extends State<GroceryList> {
   Widget build(BuildContext context) {
     Widget content = Center(
       child: Text(
-        'No items added yet',
+        _error,
         textAlign: TextAlign.center,
         style: Theme.of(
           context,
